@@ -4,7 +4,7 @@ project(efp)
 set(CMAKE_CXX_STANDARD 14)
 
 find_package (Threads REQUIRED)
-add_library(efp STATIC ElasticFrameProtocol.cpp)
+add_library(efp STATIC ElasticFrameProtocol.cpp ElasticFrameProtocol.h ElasticInternal.h)
 
 #remove_definitions(-DDEBUG)
 #add_definitions(-DDEBUG)

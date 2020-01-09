@@ -21,7 +21,10 @@
 #include <cstring>
 #include <cmath>
 #include <thread>
+//#include <io.h>
+#if defined(PLATFORM_LINUX)
 #include <unistd.h>
+#endif
 #include <functional>
 #include <bitset>
 #include <mutex>
@@ -186,8 +189,17 @@ public:
         SuperFrame &operator=(const SuperFrame &) = delete;
 
         explicit SuperFrame(size_t memAllocSize) {
-            int result = posix_memalign((void **) &pFrameData, 32,
+			int result = 1;
+
+#if defined(PLATFORM_LINUX)
+            result = posix_memalign((void **) &pFrameData, 32,
                            memAllocSize);   //32 byte memory alignment for AVX2 processing //Winboze needs some other code.
+#elif defined(PLATFORM_WINDOWS)
+			pFrameData = static_cast<uint8_t*>(_aligned_malloc(32, memAllocSize));
+			if (pFrameData) {
+				result = 0;
+			}
+#endif
 
             if (pFrameData && !result) mFrameSize = memAllocSize;
         }
