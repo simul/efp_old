@@ -21,7 +21,6 @@
 #include <cstring>
 #include <cmath>
 #include <thread>
-//#include <io.h>
 #if defined(PLATFORM_LINUX)
 #include <unistd.h>
 #endif
