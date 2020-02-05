@@ -27,15 +27,5 @@ file(GLOB unit_test_template "${CMAKE_CURRENT_SOURCE_DIR}/unitTestTemplate/*.cpp
 add_executable(efptests main.cpp ${unit_test_template} ${unit_tests} ElasticFrameProtocol.cpp)
 target_link_libraries(efptests Threads::Threads)
 
-# Windows platform
-if(WIN32)
-	set(def_platform PLATFORM_WINDOWS)
-# Android platform
-elseif(ANDROID)
-	set(def_platform PLATFORM_ANDROID)
-else()
-	message(FATAL_ERROR "Unsupported platform!")
-endif() 
-
 target_compile_definitions(efp PRIVATE ${def_platform})	
 
