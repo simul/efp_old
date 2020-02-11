@@ -29,7 +29,7 @@ void UnitTest13::gotData(ElasticFrameProtocol::pFramePtr &packet) {
 
     unitTestPacketNumberReciever++;
 
-    if (unitTestPacketNumberReciever != packet->mPts) {
+    if (unitTestPacketNumberReciever+1000 != packet->mPts) {
         std::cout << "Got PTS -> " << unsigned(packet->mPts) << " Expected -> " << unsigned(unitTestPacketNumberReciever) << std::endl;
         unitTestPacketNumberReciever = packet->mPts; //if you want to continue remove the lines under to the return;
         unitTestFailed = true;
@@ -37,7 +37,7 @@ void UnitTest13::gotData(ElasticFrameProtocol::pFramePtr &packet) {
         return;
     }
 
-    if ((unitTestPacketNumberReciever+1000) != packet->mDts) {
+    if ((unitTestPacketNumberReciever) != packet->mDts) {
         std::cout << "Got DTS -> " << unsigned(packet->mPts) << " Expected -> " << unsigned(unitTestPacketNumberReciever) << std::endl;
         unitTestPacketNumberReciever = packet->mPts; //if you want to continue remove the lines under to the return;
         unitTestFailed = true;
@@ -70,7 +70,8 @@ void UnitTest13::gotData(ElasticFrameProtocol::pFramePtr &packet) {
 bool UnitTest13::waitForCompletion() {
     int breakOut = 0;
     while (unitTestActive) {
-        usleep(1000 * 250); //quarter of a second
+        //quarter of a second
+        std::this_thread::sleep_for(std::chrono::microseconds(1000 * 250));
         if (breakOut++ == 10) {
             std::cout << "waitForCompletion did wait for 5 seconds. fail the test." << std::endl;
             unitTestFailed = true;
@@ -91,7 +92,7 @@ bool UnitTest13::startUnitTest() {
     std::vector<uint8_t> mydata;
     uint8_t streamID=1;
     myEFPReciever = new (std::nothrow) ElasticFrameProtocol();
-    myEFPPacker = new (std::nothrow) ElasticFrameProtocol(MTU, ElasticFrameProtocolModeNamespace::sender);
+    myEFPPacker = new (std::nothrow) ElasticFrameProtocol(MTU, ElasticFrameMode::sender);
     if (myEFPReciever == nullptr || myEFPPacker == nullptr) {
         if (myEFPReciever) delete myEFPReciever;
         if (myEFPPacker) delete myEFPPacker;
@@ -102,7 +103,7 @@ bool UnitTest13::startUnitTest() {
     myEFPReciever->startReceiver(5, 2);
     unitTestsSavedData2D.clear();
     unitTestsSavedData3D.clear();
-    expectedPTS = 0;
+    expectedPTS = 1000;
     unitTestPacketNumberSender=0;
     unitTestPacketNumberReciever = 0;
 
@@ -111,7 +112,7 @@ bool UnitTest13::startUnitTest() {
 
         mydata.clear();
         mydata.resize(((MTU - myEFPPacker->geType1Size()) * 5) + 12);
-        result = myEFPPacker->packAndSend(mydata, ElasticFrameContent::h264, packetNumber+1, packetNumber+1001, 0, streamID, INLINE_PAYLOAD);
+        result = myEFPPacker->packAndSend(mydata, ElasticFrameContent::h264, packetNumber+1001, packetNumber+1, 0, streamID, INLINE_PAYLOAD);
         if (result != ElasticFrameMessages::noError) {
             std::cout << "Unit test number: " << unsigned(activeUnitTest)
                       << " Failed in the packAndSend method. Error-> " << signed(result)

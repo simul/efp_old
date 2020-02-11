@@ -25,8 +25,8 @@ else if (g == (LOGG_FATAL & (LOGG_MASK))) {a << "Fatal: ";} \
 if (a.str().length()) { \
 if (l) {a << __FILE__ << " " << __LINE__ << " ";} \
 a << f << std::endl; \
-std::cerr << a.str(); \
-std::cerr.flush(); \
+std::cout << a.str(); \
+std::cout.flush(); \
 } \
 }
 #else
@@ -68,6 +68,53 @@ enum Frametype : uint8_t { //The 4 LSB are used! (The 4 MSB are the flags)
 	type4
 };
 
+#if __ANDROID__
+struct ElasticFrameType0 {
+	uint8_t hFrameType = Frametype::type0;
+}__attribute__((packed));
+
+struct ElasticFrameType1 {
+	uint8_t hFrameType = Frametype::type1;
+	uint8_t  hStream = 0;
+	uint16_t hSuperFrameNo = 0;
+	uint16_t hFragmentNo = 0;
+	uint16_t hOfFragmentNo = 0;
+}__attribute__((packed));
+
+struct ElasticFrameType2 {
+	uint8_t hFrameType = Frametype::type2;
+	uint8_t  hStream = 0;
+	ElasticFrameContent hDataContent = ElasticFrameContent::unknown;
+	uint16_t hSizeOfData = 0;
+	uint16_t hSuperFrameNo = 0;
+	uint16_t hOfFragmentNo = 0;
+	uint16_t hType1PacketSize = 0;
+	uint64_t hPts = UINT64_MAX;
+	uint32_t hDtsPtsDiff = UINT32_MAX;
+	uint32_t hCode = UINT32_MAX;
+}__attribute__((packed));
+
+struct ElasticFrameType3 {
+	uint8_t hFrameType = Frametype::type3;
+	uint8_t  hStream = 0;
+	uint16_t hSuperFrameNo = 0;
+	uint16_t hType1PacketSize = 0;
+	uint16_t hOfFragmentNo = 0;
+}__attribute__((packed));
+
+//Proposal of new minimalistic end-frame
+struct ElasticFrameType4 {
+	uint8_t hFrameType = Frametype::type4;
+	uint8_t  hStream = 0;
+	uint16_t hSizeOfData = 0;
+	uint16_t hSuperFrameNo = 0;
+	uint16_t hOfFragmentNo = 0;
+	uint16_t hType1PacketSize = 0;
+	uint64_t hPts = UINT64_MAX;
+	uint32_t hDtsPtsDiff = UINT32_MAX;
+}__attribute__((packed));
+
+#else
 struct ElasticFrameType0 {
 #pragma pack(push, 1)
 	uint8_t hFrameType = Frametype::type0;
@@ -122,6 +169,8 @@ struct ElasticFrameType4 {
 	uint32_t hDtsPtsDiff = UINT32_MAX;
 #pragma pack(pop)
 };
+#endif
+
 //Packet header part ----- END ------
 
 

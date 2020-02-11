@@ -234,7 +234,7 @@ ElasticFrameMessages ElasticFrameProtocol::unpackType2(const uint8_t* pSubPacket
 		size_t lInsertDataPointer = (size_t)lType2Frame.hType1PacketSize * (size_t)lType2Frame.hOfFragmentNo;
 
 		std::memmove(pThisBucket->mBucketData->pFrameData + lInsertDataPointer,
-			pSubPacket + sizeof(ElasticFrameType2), packetSize - sizeof(ElasticFrameType2));
+			pSubPacket + sizeof(ElasticFrameType2), lType2Frame.hSizeOfData);
 
 		return ElasticFrameMessages::noError;
 	}
@@ -282,8 +282,10 @@ ElasticFrameMessages ElasticFrameProtocol::unpackType2(const uint8_t* pSubPacket
 
 	// When the type2 frames are received only then is the actual size to be delivered known... Now set the real size for the bucketData
 	if (lType2Frame.hSizeOfData) {
+		//pThisBucket->mBucketData->mFrameSize =
+			//(pThisBucket->mFragmentSize * lType2Frame.hOfFragmentNo) + (packetSize - sizeof(ElasticFrameType2)); // used be this
 		pThisBucket->mBucketData->mFrameSize =
-			(pThisBucket->mFragmentSize * lType2Frame.hOfFragmentNo) + (packetSize - sizeof(ElasticFrameType2));
+			(pThisBucket->mFragmentSize * lType2Frame.hOfFragmentNo) + lType2Frame.hSizeOfData;
 		// Type 2 is always at the end and is always the highest number fragment
 		size_t lInsertDataPointer = (size_t)lType2Frame.hType1PacketSize * (size_t)lType2Frame.hOfFragmentNo;
 
@@ -406,12 +408,8 @@ void ElasticFrameProtocol::deliveryWorker() {
 
 			// pop one frame
 			if (!mSuperFrameQueue.empty()) {
-				std::cerr << "Delivery 1" << std::endl;
-				std::cerr.flush();
 				lSuperframe = std::move(mSuperFrameQueue.front());
 				mSuperFrameQueue.pop_front();
-				std::cerr << "Delivery 2" << std::endl;
-				std::cerr.flush();
 			}
 			// If there is more to pop don't close the semaphore else do.
 			if (mSuperFrameQueue.empty()) {
@@ -442,9 +440,6 @@ void ElasticFrameProtocol::receiverWorker(uint32_t timeout) {
 
 	//    uint32_t lTimedebuggerPointer = 0;
 	//    int64_t lTimeDebugger[100];
-
-	std::cerr << "Receiver here 1" << std::endl;
-	std::cerr.flush();
 
 	while (mThreadActive) {
 		lTimeReference += WORKER_THREAD_SLEEP_US;
@@ -505,8 +500,6 @@ void ElasticFrameProtocol::receiverWorker(uint32_t timeout) {
 		}
 
 		// Scan trough all buckets
-		std::cerr << "Receiver here 2" << std::endl;
-		std::cerr.flush();
 		for (uint64_t i = 0; i < CIRCULAR_BUFFER_SIZE + 1; i++) {
 
 			// Only work with the buckets that are active
@@ -540,8 +533,6 @@ void ElasticFrameProtocol::receiverWorker(uint32_t timeout) {
 			}
 		}
 
-		std::cerr << "Receiver here 3" << std::endl;
-		std::cerr.flush();
 		size_t lNumCandidatesToDeliver = lCandidates.size();
 		if ((!lFistDelivery && lNumCandidatesToDeliver >= 2) || lTimeOutTrigger) {
 			lFistDelivery = true;
@@ -602,8 +593,7 @@ void ElasticFrameProtocol::receiverWorker(uint32_t timeout) {
 						lAndTheNextIs = x.deliveryOrder + 1;
 
 						lOldestFrameDelivered = mHeadOfLineBlockingTimeout ? x.deliveryOrder : 0;
-						std::cerr << "Receiver here 4" << std::endl;
-						std::cerr.flush();
+						
 						//Create a scope for the lock
 						{
 							std::lock_guard<std::mutex> lk(mSuperFrameMtx);
@@ -669,8 +659,6 @@ void ElasticFrameProtocol::receiverWorker(uint32_t timeout) {
 
 						//std::cout << unsigned(oldestFrameDelivered) << " " << unsigned(x.deliveryOrder) << std::endl;
 						if (lOldestFrameDelivered <= x.deliveryOrder) {
-							std::cerr << "Receiver here 4" << std::endl;
-							std::cerr.flush();
 							lOldestFrameDelivered = mHeadOfLineBlockingTimeout ? x.deliveryOrder : 0;
 							//Create a scope the lock
 							{
@@ -697,8 +685,7 @@ void ElasticFrameProtocol::receiverWorker(uint32_t timeout) {
 			}
 		}
 		mNetMtx.unlock();
-		std::cerr << "Receiver here 6" << std::endl;
-		std::cerr.flush();
+	
 		// Is more than 75% of the buffer used. //FIXME notify the user in some way
 		if (lActiveCount > (CIRCULAR_BUFFER_SIZE / 4) * 3) {
 			LOGGER(true, LOGG_WARN, "Current active buckets are more than 75% of the circular buffer.")
@@ -770,6 +757,20 @@ ElasticFrameMessages ElasticFrameProtocol::stopReceiver() {
 		}
 	}
 	return ElasticFrameMessages::noError;
+}
+
+void ElasticFrameProtocol::lockProcess()
+{
+	mReceiveMtx.lock();
+	mNetMtx.lock();
+	mSuperFrameMtx.lock();
+}
+
+void ElasticFrameProtocol::unlockProcess()
+{
+	mReceiveMtx.unlock();
+	mNetMtx.unlock();
+	mSuperFrameMtx.unlock();
 }
 
 ElasticFrameMessages ElasticFrameProtocol::receiveFragment(const std::vector<uint8_t> &rSubPacket, uint8_t fromSource) {

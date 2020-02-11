@@ -43,7 +43,7 @@ void UnitTest7::sendData(const std::vector<uint8_t> &subPacket) {
 void UnitTest7::gotData(ElasticFrameProtocol::pFramePtr &packet) {
     if (!unitTestActive) return;
 
-    if (packet->mPts != 1 || packet->mCode != 2) {
+    if (packet->mPts != 1001 || packet->mCode != 2) {
         unitTestFailed = true;
         unitTestActive = false;
         return;
@@ -73,7 +73,8 @@ void UnitTest7::gotData(ElasticFrameProtocol::pFramePtr &packet) {
 bool UnitTest7::waitForCompletion() {
     int breakOut = 0;
     while (unitTestActive) {
-        usleep(1000 * 250); //quarter of a second
+        //quarter of a second
+        std::this_thread::sleep_for(std::chrono::microseconds(1000 * 250));
         if (breakOut++ == 10) {
             std::cout << "waitForCompletion did wait for 5 seconds. fail the test." << std::endl;
             unitTestFailed = true;
@@ -94,7 +95,7 @@ bool UnitTest7::startUnitTest() {
     std::vector<uint8_t> mydata;
     uint8_t streamID=1;
     myEFPReciever = new (std::nothrow) ElasticFrameProtocol();
-    myEFPPacker = new (std::nothrow) ElasticFrameProtocol(MTU, ElasticFrameProtocolModeNamespace::sender);
+    myEFPPacker = new (std::nothrow) ElasticFrameProtocol(MTU, ElasticFrameMode::sender);
     if (myEFPReciever == nullptr || myEFPPacker == nullptr) {
         if (myEFPReciever) delete myEFPReciever;
         if (myEFPPacker) delete myEFPPacker;
@@ -108,7 +109,7 @@ bool UnitTest7::startUnitTest() {
     mydata.resize(((MTU - myEFPPacker->geType1Size()) * 5) + 12);
     std::generate(mydata.begin(), mydata.end(), [n = 0]() mutable { return n++; });
     unitTestActive = true;
-    result = myEFPPacker->packAndSend(mydata, ElasticFrameContent::adts,1,1001,2,streamID,NO_FLAGS);
+    result = myEFPPacker->packAndSend(mydata, ElasticFrameContent::adts,1001,1,2,streamID,NO_FLAGS);
     if (result != ElasticFrameMessages::noError) {
         std::cout << "Unit test number: " << unsigned(activeUnitTest) << " Failed in the packAndSend method. Error-> " << signed(result)
                   << std::endl;

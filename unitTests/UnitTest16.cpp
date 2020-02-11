@@ -137,7 +137,8 @@ UnitTest16::gotData(ElasticFrameProtocol::pFramePtr &packet) {
 bool UnitTest16::waitForCompletion() {
     int breakOut = 0;
     while (unitTestActive) {
-        usleep(1000 * 250); //quarter of a second
+        //quarter of a second
+        std::this_thread::sleep_for(std::chrono::microseconds(1000 * 250));
         if (breakOut++ == 10) {
             std::cout << "waitForCompletion did wait for 5 seconds. fail the test." << std::endl;
             unitTestFailed = true;
@@ -152,7 +153,7 @@ bool UnitTest16::waitForCompletion() {
 }
 
 bool UnitTest16::startUnitTest() {
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = (unsigned) std::chrono::system_clock::now().time_since_epoch().count();
     randEng =  std::default_random_engine(seed);
     unitTestFailed = false;
     unitTestActive = false;
@@ -160,7 +161,7 @@ bool UnitTest16::startUnitTest() {
     std::vector<uint8_t> mydata;
     uint8_t streamID = 1;
     myEFPReciever = new(std::nothrow) ElasticFrameProtocol();
-    myEFPPacker = new(std::nothrow) ElasticFrameProtocol(MTU, ElasticFrameProtocolModeNamespace::sender);
+    myEFPPacker = new(std::nothrow) ElasticFrameProtocol(MTU, ElasticFrameMode::sender);
     if (myEFPReciever == nullptr || myEFPPacker == nullptr) {
         if (myEFPReciever) delete myEFPReciever;
         if (myEFPPacker) delete myEFPPacker;

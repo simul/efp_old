@@ -193,12 +193,10 @@ public:
 
 #ifdef _WIN64
 			pFrameData = (uint8_t*)_aligned_malloc(memAllocSize, 32);
-			//pFrameData = new uint8_t[memAllocSize];
 #else
 			result = posix_memalign((void **)&pFrameData, 32,
 				memAllocSize);
 #endif
-
 			if (pFrameData && !result) mFrameSize = memAllocSize;
 		}
 
@@ -208,7 +206,6 @@ public:
 			{
 #ifdef _WIN64		
 				_aligned_free(pFrameData);
-				//delete[] pFrameData;
 #else
 				free(pFrameData);
 #endif
@@ -281,15 +278,9 @@ public:
 	/// Stop the reciever worker
 	ElasticFrameMessages stopReceiver();
 
-	void LockBucketQueue()
-	{
-		mNetMtx.lock();
-	}
+	void lockProcess();
 
-	void UnlockBucketQueue()
-	{
-		mNetMtx.unlock();
-	}
+	void unlockProcess();
 
 	/**
 	* Method to feed the network fragments received when the data is a vector
