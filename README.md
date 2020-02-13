@@ -6,35 +6,35 @@ The ElasticFrameProtocol is acting as a bridge between elementary data and the u
 
 ```
 ---------------------------------------------------------   /\
-| Data type 1 | Data type 2 | Data type 3 | Data type 4 |  /  \
+| Data type L | Data type L | Data type F | Data type Q |  /  \
 ---------------------------------------------------------   ||
 |                   ElasticFrameProtocol                |   ||
 ---------------------------------------------------------   ||
-| Network layer: UDP, TCP, SRT, RIST aso.               |  \  /
+| Network layer: UDP, TCP, SRT, RIST, Zixi, SCTP, aso.  |  \  /
 ---------------------------------------------------------   \/
 
 ```
 
-The elasticity comes from the protocols ability to adapt to incoming frame size, type, number of concurrent streams and underlying infrastructure. Due to it’s elastic behavior the layer between the transport layer and producers/consumers of the data can be kept thin without driving overhead, complexity and delay. 
+The elasticity comes from the protocols ability to adapt to incoming frame size, type, number of concurrent streams and underlying infrastructure. The layer between the transport layer and producers/consumers of the data can be kept thin without driving overhead, complexity and delay. 
 
-Please read -> **ElasticFrameProtocol.pdf** for more information.
+Please read -> [**ElasticFrameProtocol**](https://edgeware-my.sharepoint.com/:p:/g/personal/anders_cedronius_edgeware_tv/ERnSit7j6udBsZOqkQcMLrQBpKmnfdApG3lehRk4zE-qgQ?e=qXzjfX) for more information.
 
 
 ## Installation
 
-Requires cmake version >= **3.10** and **C++11**
+Requires cmake version >= **3.10** and **C++14**
 
 **Release:**
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release
+cmake -DCMAKE_BUILD_TYPE=Release .
 make
 ```
 
 ***Debug:***
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Debug
+cmake -DCMAKE_BUILD_TYPE=Debug .
 make
 ```
 
@@ -52,9 +52,11 @@ The static EFP library
 
 **EFP** is built on Ubuntu 18.04 in the bitbucket [pipeline](https://bitbucket.org/unitxtra/efp/addon/pipelines/home).
 
-By us on MacOS using C-Lion.
+MacOS by us during development.
 
-Please help us build other platforms. 
+Aidan from Nvidia developer forum helped us building a Windows version
+(Windows is not currently verified during commits)
+ 
 
 ---
 
@@ -86,11 +88,15 @@ myEFPSender.sendCallback = std::bind(&sendData, std::placeholders::_1);
 // param1 = The data
 // param2 = The data type
 // param3 = PTS
-// param4 = CODE (if the data type param2 (uint8_t) msb is set then CODE must be used
+// param4 = DTS
+// param5 = CODE (if the data type param2 (uint8_t) msb is set then CODE must be used
 // See the header file detailing what CODE should be set to
-// param5 = Stream number (uint8_t) a unique value for that EFP-Stream
-// param6 = FLAGS (used for various signaling in the protocol) 
-myEFPSender.packAndSend(myData, ElasticFrameContent::h264, 0, 'ANXB', 2, NO_FLAGS);
+// param6 = Stream number (uint8_t) a unique value for that EFP-Stream
+// param7 = FLAGS (used for various signaling in the protocol) 
+myEFPSender.packAndSend(myData, ElasticFrameContent::h264, 0, 0, EFP_CODE('A', 'N', 'X', 'B'), 2, NO_FLAGS);
+
+//If you got your data as a pointer there is also the method 'packAndSendFromPtr' so you don't need to copy your data into a vector first.
+
 
 ```
 
@@ -107,6 +113,7 @@ myEFPSender.packAndSend(myData, ElasticFrameContent::h264, 0, 'ANXB', 2, NO_FLAG
 // mDataContent is containing the content descriptor
 // mBroken is true if data in the superFrame is missing
 // mPts contains the pts value used in the superFrame
+// mDts contains the pts value used in the superFrame
 // mCode contains the code sent (if used)
 // mStream is the stream number to associate to the data
 // mFlags contains the flags used by the superFrame
@@ -127,12 +134,64 @@ myEFPReceiver.startReceiver(5, 2);
 // Receive a EFP fragment
 myEFPReceiver.receiveFragment(subPacket,0);
 
+//If you got your data as a pointer there is also the method 'receiveFragmentFromPtr' so you don't need to copy your data into a vector first.
+
 // When done stop the worker
 myEFPReceiver.stopReciever();
 
 ```
 
+## Using EFP in your CMake project
 
+* **Step1** 
+
+Add this in your CMake file.
+
+```
+#Include EFP
+include(ExternalProject)
+ExternalProject_Add(project_efp
+        GIT_REPOSITORY https://bitbucket.org/unitxtra/efp.git
+        GIT_SUBMODULES ""
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/efp
+        BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/efp
+        GIT_PROGRESS 1
+        BUILD_COMMAND cmake --build ${CMAKE_CURRENT_SOURCE_DIR}/efp --config ${CMAKE_BUILD_TYPE} --target efp
+        STEP_TARGETS build
+        EXCLUDE_FROM_ALL TRUE
+        INSTALL_COMMAND ""
+        )
+add_library(efp STATIC IMPORTED)
+set_property(TARGET efp PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/efp/libefp.a)
+add_dependencies(efp project_efp)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/efp/)
+```
+
+* **Step2**
+
+Link your library or executable.
+
+```
+target_link_libraries((your target) efp (the rest you want to link)) 
+```
+
+* **Step3** 
+
+Add header file to your project.
+
+```
+#include "ElasticFrameProtocol.h"
+```
+
+You should now be able to use EFP in your project and use any CMake supported IDE
+
+## Plug-in
+
+EFP is all about framing data and checking the integrity of the content. For other functionality EFP uses plug-ins. Available plug-ins are listed below.
+
+[**EFPBonding**](https://bitbucket.org/unitxtra/efpbond/src/master/)
+
+EFPBond makes it possible for all streams to use multiple underlying transport interfaces for protection or to increase the capacity. 
 
 ## Contributing
 
@@ -155,22 +214,25 @@ Another common solution to cover for a protocol’s shortcomings is to stack pro
 
 Now with the rise of protocols such as RIST, Zixi, and SRT we wanted to fully utilize the transport containers with as little overhead as possible, so we implemented a thin network adaptation layer that allows us to easily use different transport protocols where they make most sense maintaining a well-defined data delivery pipeline to and from the data producers/consumers. 
 
-That’s why we developed ElasticFrameProtocol, we are so enthusiastic about where RIST, Zixi, and SRT is taking the future of broadcast. There are new open source projects putting these building blocks together, creating new ways of working and transporting media all the time.   
+That’s why we developed ElasticFrameProtocol, we are so enthusiastic about where RIST, Zixi, and SRT is taking the future of broadcast. There are new open source projects putting these building blocks together, creating new ways of working and transporting media all the time.  We would like to simplify the way of building media solutions even more by open sourcing the layer on top of the transport protocols so that you can focus on developing great services instead.  
 
 Please feel free to use, clone / fork and contribute to this new way of interconnecting media services between datacenters, internet and private networks in your next project or lab. 
 
 
----
-
-Please read -> **ElasticFrameProtocol.pdf** for detailed information.
-
----
-
 ## Examples
 
 
+1. A client/server using EFP over SRT
 
-1. [EFP + SRT Client/Server](https://bitbucket.org/unitxtra/cppsrtframingexample/src/master/)
+[EFP + SRT Client/Server](https://bitbucket.org/unitxtra/cppsrtframingexample/src/master/)
+
+2. A example showing how to use the EBPBond plug-in 
+
+[EFP + EFPBond](https://bitbucket.org/andersced/cppsrtbondingexample/src/master/)
+
+3. A simple example showing how to map UDP -> MPEG-TS -> EFP
+
+[UDP -> MPEG-TS -> EFP](https://bitbucket.org/unitxtra/ts2efp/src/master/)
 
 
 ## Next steps
@@ -182,6 +244,10 @@ Please read -> **ElasticFrameProtocol.pdf** for detailed information.
 ## Credits
 
 The UnitX team at Edgeware AB
+
+Maintainer: anders.cedronius(at)edgeware.tv
+
+
 
 ## License
 
