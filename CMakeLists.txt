@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 
 find_package (Threads REQUIRED)
-add_library(efp STATIC ElasticFrameProtocol.cpp)
+add_library(efp STATIC ElasticFrameProtocol.cpp ElasticFrameProtocol.h ElasticInternal.h)
 
 file(GLOB unit_tests "${CMAKE_CURRENT_SOURCE_DIR}/unitTests/*.cpp")
 file(GLOB unit_test_template "${CMAKE_CURRENT_SOURCE_DIR}/unitTestTemplate/*.cpp")
